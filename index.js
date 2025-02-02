@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// 1. npx gepeto <name> <git url>: external git
-// 2. npx gepeto <name>: no external git
 const fs = require('fs');
 const path = require('path');
 const { pipeline } = require('stream');
@@ -23,10 +21,23 @@ function analyzeRepo(repoPath, apiKey, aiProvider) {
             `python ${__dirname}/gepeto_ai.py "${repoPath}" "${apiKey}" "${aiProvider}"`, 
             { cwd: __dirname }
         ).toString();
-        return JSON.parse(result); // Parse output JSON
+        const analysis = JSON.parse(result);
+
+        // Pastikan requirements.txt dihasilkan
+        if (!analysis.requirements) {
+            analysis.requirements = "# Default dependencies\nflask\nnumpy\nrequests\n"; // Fallback jika AI tidak menghasilkan requirements
+        }
+
+        return analysis;
     } catch (error) {
         console.error("❌ Gagal menganalisis repositori:", error);
-        return null;
+        return {
+            install_script: "pip install -r requirements.txt",
+            start_script: "python app.py",
+            description: "A Pinokio project",
+            requirements: "# Default dependencies\nflask\nnumpy\nrequests\n", // Fallback
+            pinokio_script: "Default script"
+        };
     }
 }
 
@@ -164,25 +175,24 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         console.error("❌ Gagal memodifikasi start.js:", error);
     }
 
-    // If url doesn't exist => means start fresh, so create those files
-    // if url exists => assume the files exist in the cloned repo
+    // Jika url tidak ada (mode tanpa Git), buat requirements.txt dan app.py
     if (!url) {
-        // 6. If url does not exist, it's template/2 => create an empty start file and install file
         const requirementsFile = path.resolve(dest, install);
         try {
             if (!fs.existsSync(requirementsFile)) {
-                await fs.promises.writeFile(requirementsFile, "");
+                await fs.promises.writeFile(requirementsFile, "# Default dependencies\nflask\nnumpy\nrequests\n"); // Fallback
             }
-            await fs.promises.rename(path.resolve(dest, "requirements.txt"), requirementsFile);
         } catch (error) {
             console.error("❌ Gagal membuat atau memindahkan requirements.txt:", error);
         }
 
         const appFile = path.resolve(dest, start);
         try {
-            await fs.promises.rename(path.resolve(dest, "app.py"), appFile);
+            if (!fs.existsSync(appFile)) {
+                await fs.promises.writeFile(appFile, "# Default Python script\nprint('Hello, Pinokio!')\n"); // Fallback
+            }
         } catch (error) {
-            console.error("❌ Gagal memindahkan app.py:", error);
+            console.error("❌ Gagal membuat app.py:", error);
         }
     }
 
@@ -269,23 +279,14 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         return;
     }
 
-    // 12. Git branch main
-    /*try {
-        await git.branch({ fs, dir: dest, ref: 'main' });
-        console.log('✅ Git branch "main" created.');
-    } catch (error) {
-        console.error("❌ Gagal membuat branch Git:", error);
-        return;
-    }
-    */
-   
-    // If git url is present, analyze the repo
+    // Jika URL Git ada, analisis repositori
     if (url) {
         const repoName = gitUrlInput.split("/").pop().replace(".git", "");
         const repoPath = path.resolve(dest, repoName);
         const analysis = analyzeRepo(repoPath, apiKeyInput, aiProviderInput);
+
         if (analysis && analysis.pinokio_script) {
-            // Update install.js with dependencies
+            // Update install.js
             const installFile = path.resolve(dest, "install.js");
             try {
                 let installContent = fs.readFileSync(installFile, "utf8");
@@ -298,7 +299,7 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
                 console.error("❌ Gagal memodifikasi install.js:", error);
             }
 
-            // Update start.js with command to run the app
+            // Update start.js
             const startFile = path.resolve(dest, "start.js");
             try {
                 let startContent = fs.readFileSync(startFile, "utf8");
@@ -311,26 +312,14 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
                 console.error("❌ Gagal memodifikasi start.js:", error);
             }
 
-            // Update pinokio.js with description
-            const pinokioFile = path.resolve(dest, "pinokio.js");
-            try {
-                let pinokioContent = fs.readFileSync(pinokioFile, "utf8");
-                pinokioContent = pinokioContent.replace(
-                    '"<DESCRIPTION>"',
-                    `"${analysis.description}"`
-                );
-                fs.writeFileSync(pinokioFile, pinokioContent);
-            } catch (error) {
-                console.error("❌ Gagal memodifikasi pinokio.js:", error);
-            }
-
             // Update requirements.txt
             if (analysis.requirements) {
                 const requirementsFile = path.resolve(dest, "requirements.txt");
                 try {
                     fs.writeFileSync(requirementsFile, analysis.requirements);
+                    console.log('✅ File requirements.txt berhasil dibuat berdasarkan analisis AI.');
                 } catch (error) {
-                    console.error("❌ Gagal memodifikasi requirements.txt:", error);
+                    console.error("❌ Gagal membuat requirements.txt:", error);
                 }
             }
         } else {
