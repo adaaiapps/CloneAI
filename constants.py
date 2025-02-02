@@ -32,20 +32,23 @@ Analyze the given GitHub repository and create a Pinokio script to install and r
 ## Instructions
 
 1.  **Focus on Pinokio:** Create a Pinokio script that uses the `shell.run` method to install dependencies and run the application.
-2.  **Dependency Installation:** Identify the correct way to install dependencies (e.g., using `pip install -r requirements.txt`).
-3.  **Application Launch:** Identify the correct command to launch the application (e.g., `python app.py`).
+2.  **Dependency Installation:** Identify the correct way to install dependencies (e.g., using `pip install -r requirements.txt`, `playwright install --with-deps`, `npm install`).
+3.  **Application Launch:** Identify the correct command(s) to launch the application (e.g., `python app.py`, `npm run start`).
 4.  **Description:** Provide a short description of the application for `pinokio.js`.
 5.  **Requirements:** Provide the content for `requirements.txt` if it exists. If not, leave it empty.
+6.  **Multiple Commands:** If the application requires multiple commands to run, provide them as a list of commands.
+7.  **Terminal Monitoring:** If the application prints a specific message when it's ready, provide a regular expression to monitor the terminal output.
 
 ## Output Format
 
-Provide the install command, start command, description, and requirements in the following JSON format:
+Provide the install command, start command(s), description, requirements, and terminal monitoring regex in the following JSON format:
 
 {
     "install_script": "Single line install command (e.g., pip install -r requirements.txt)",
-    "start_script": "Single line start command (e.g., python app.py)",
+    "start_script": "Single line or multi line start command(s) (e.g., python app.py or [python app.py, npm run start])",
     "description": "Single line description for pinokio.js (e.g., A simple Python application)",
-    "requirements": "Single line requirements.txt content (e.g., requests\\nnumpy)"
+    "requirements": "Single line requirements.txt content (e.g., requests\\nnumpy)",
+    "terminal_regex": "Regular expression to monitor the terminal output (e.g., /http:\\\\/\\\\/\\\\S+/)"
 }
 
 **DO NOT OUTPUT ANY SINGLE CHARACTER OUTSIDE OF THIS JSON STRUCTURE.**
@@ -55,13 +58,14 @@ Provide the install command, start command, description, and requirements in the
 output_schema = """
 ## Output Format
 
-Provide the install command, start command, description, and requirements in the following JSON format:
+Provide the install command, start command(s), description, requirements, and terminal monitoring regex in the following JSON format:
 
 {
     "install_script": "Single line install command (e.g., pip install -r requirements.txt)",
-    "start_script": "Single line start command (e.g., python app.py)",
+    "start_script": "Single line or multi line start command(s) (e.g., python app.py or [python app.py, npm run start])",
     "description": "Single line description for pinokio.js (e.g., A simple Python application)",
-    "requirements": "Single line requirements.txt content (e.g., requests\\nnumpy)"
+    "requirements": "Single line requirements.txt content (e.g., requests\\nnumpy)",
+    "terminal_regex": "Regular expression to monitor the terminal output (e.g., /http:\\\\/\\\\/\\\\S+/)"
 }
 
 **DO NOT OUTPUT ANY SINGLE CHARACTER OUTSIDE OF THIS JSON STRUCTURE.**
@@ -206,6 +210,6 @@ pinokio_commands = {
         numpy
         pandas
         """,
-        "output_format": "Single line requirements.txt content (e.g., requests\\nnumpy)"
+        "output_format": "Single line requirements.txt content (e.g., requests\\nnumpy), use \\n for new line"
     }
 }
