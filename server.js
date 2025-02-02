@@ -2,6 +2,7 @@ const express = require('express');
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { createProject } = require('./index.js');
 
 const app = express();
 const PORT = 3000;
@@ -14,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
 
 // Endpoint untuk membuat proyek
-app.post('/create-project', (req, res) => {
+app.post('/create-project', async (req, res) => {
     const { name, git, icon, aiProvider, apiKey } = req.body;
 
     if (!name || !apiKey || !aiProvider) {
@@ -22,14 +23,11 @@ app.post('/create-project', (req, res) => {
     }
 
     try {
-        // Jalankan index.js dengan parameter yang diberikan
-        const result = execSync(
-            `node index.js "${name}" "${git || ''}" "${icon || ''}" "${apiKey}" "${aiProvider}"`,
-            { cwd: __dirname }
-        ).toString();
+        // Panggil fungsi createProject dari index.js
+        await createProject(name, git, icon, apiKey, aiProvider);
 
         // Kirim respons ke client
-        res.json({ success: true, message: 'Project created successfully!', output: result });
+        res.json({ success: true, message: 'Project created successfully!' });
     } catch (error) {
         console.error('Error creating project:', error);
         res.status(500).json({ error: 'Failed to create project.', details: error.message });

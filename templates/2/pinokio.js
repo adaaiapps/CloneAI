@@ -1,9 +1,9 @@
 const path = require('path')
 module.exports = {
   version: "3.2",
-  title: "<TITLE>",
-  description: "",
-  icon: "<ICON>",
+  title: "<TITLE>", // This placeholder will be replaced by AI
+  description: "<DESCRIPTION>", // This placeholder will be replaced by AI
+  icon: "<ICON>", // This placeholder will be replaced by AI
   menu: async (kernel, info) => {
     let installed = info.exists("env")
     let running = {

@@ -2,6 +2,8 @@ import json
 import sys
 import os
 import requests
+import re
+from constants import system_prompt, plan_prompt, output_schema
 
 def analyze_repo(repo_path, api_key, ai_provider):
     try:
@@ -29,7 +31,7 @@ def analyze_repo(repo_path, api_key, ai_provider):
                     {
                         "parts": [
                             {
-                                "text": f"Analisis repositori berikut dan buat skrip Pinokio berdasarkan dokumentasi Pinokio:\n\n{repo_content}"
+                                "text": f"{system_prompt}\n\n{plan_prompt}\n\n{output_schema}\n\n{repo_content}"
                             }
                         ]
                     }
@@ -50,8 +52,8 @@ def analyze_repo(repo_path, api_key, ai_provider):
             openai.api_key = api_key
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "user", "content": f"Analisis repositori berikut dan buat skrip Pinokio berdasarkan dokumentasi Pinokio:\n\n{repo_content}"}
+                 messages=[
+                    {"role": "user", "content": f"{system_prompt}\n\n{plan_prompt}\n\n{output_schema}\n\n{repo_content}"}
                 ],
                 temperature=0.7,
                 max_tokens=1000,
@@ -60,9 +62,34 @@ def analyze_repo(repo_path, api_key, ai_provider):
             ai_response = response.choices[0].message['content']
 
         # Proses hasil AI
+        try:
+            ai_json = json.loads(ai_response)
+            install_script = ai_json.get("install_script", "")
+            start_script = ai_json.get("start_script", "")
+            description = ai_json.get("description", "")
+            requirements = ai_json.get("requirements", "")
+        except json.JSONDecodeError as e:
+            print(f"❌ Gagal memproses respons AI sebagai JSON: {e}", file=sys.stderr)
+            install_script = ""
+            start_script = ""
+            description = ""
+            requirements = ""
+
+        install_match = re.search(r'(?:pip|uv pip) install(?:.*?)(?:\n|$)', ai_response, re.IGNORECASE)
+        start_match = re.search(r'(?:python|node)(?:.*?)(?:\n|$)', ai_response, re.IGNORECASE)
+        description_match = re.search(r'Deskripsi:(.*?)(?:\n|$)', ai_response, re.IGNORECASE)
+        requirements_match = re.search(r'requirements.txt:(.*?)(?:\n|$)', ai_response, re.IGNORECASE)
+
+        install_script = install_match.group(0).strip() if install_match else ""
+        start_script = start_match.group(0).strip() if start_match else ""
+        description = description_match.group(1).strip() if description_match else ""
+        requirements = requirements_match.group(1).strip() if requirements_match else ""
+
         output = {
-            "install_script": "pip install -r requirements.txt",  # Contoh default
-            "start_script": "python app.py",  # Contoh default
+            "install_script": install_script,
+            "start_script": start_script,
+            "description": description,
+            "requirements": requirements,
             "pinokio_script": ai_response  # Skrip Pinokio yang dihasilkan oleh AI
         }
         return json.dumps(output)

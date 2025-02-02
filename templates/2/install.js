@@ -1,31 +1,31 @@
 module.exports = {
-    run: [
-      // Delete this step if your project does not use torch
-      {
-        method: "script.start",
-        params: {
-          uri: "torch.js",
-          params: {
-            venv: "env",                // Edit this to customize the venv folder path
-            // xformers: true   // uncomment this line if your project requires xformers
-          }
-        }
-      },
-      // Edit this step with your custom install commands
-      {
-        method: "shell.run",
+  run: [
+    // Delete this step if your project does not use torch
+    {
+      method: "script.start",
+      params: {
+        uri: "torch.js",
         params: {
           venv: "env",                // Edit this to customize the venv folder path
-          message: [
-            "uv pip install -r <INSTALL_FILE>"
-          ],
-        }
-      },
-      {
-        method: "fs.link",
-        params: {
-          venv: "env"
+          // xformers: true   // uncomment this line if your project requires xformers
         }
       }
-    ]
-  }
+    },
+    // Edit this step with your custom install commands
+    {
+      method: "shell.run",
+      params: {
+        venv: "env",                // Edit this to customize the venv folder path
+        message: [
+          "uv pip install -r <INSTALL_FILE>" // This placeholder will be replaced by AI
+        ],
+      }
+    },
+    {
+      method: "fs.link",
+      params: {
+        venv: "env"
+      }
+    }
+  ]
+}
