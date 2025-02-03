@@ -9,16 +9,35 @@ def analyze_repo(repo_path, api_key, ai_provider):
     try:
         # Baca semua file di repositori (hanya file teks)
         repo_content = ""
+        has_readme = False
+        has_requirements = False
+        has_app_py = False
+        
         for root, dirs, files in os.walk(repo_path):
             for file in files:
                 file_path = os.path.join(root, file)
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
+                        content = f.read()
                         repo_content += f"File: {file_path}\n"
-                        repo_content += f.read() + "\n\n"
+                        repo_content += content + "\n\n"
+                        
+                        if file.lower() == "readme.md":
+                            has_readme = True
+                        elif file.lower() == "requirements.txt":
+                            has_requirements = True
+                        elif file.lower() == "app.py":
+                            has_app_py = True
                 except UnicodeDecodeError:
                     # Abaikan file biner
                     continue
+        
+        if not has_readme:
+            repo_content += "No README.md file found.\n"
+        if not has_requirements:
+            repo_content += "No requirements.txt file found.\n"
+        if not has_app_py:
+            repo_content += "No app.py file found.\n"
 
         # Panggil API Gemini
         if ai_provider == "gemini":

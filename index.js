@@ -18,26 +18,31 @@ function analyzeRepo(repoPath, apiKey, aiProvider) {
     try {
         // Jalankan gepeto_ai.py sebagai subprocess
         const result = execSync(
-            `python ${__dirname}/gepeto_ai.py "${repoPath}" "${apiKey}" "${aiProvider}"`, 
+            `python ${__dirname}/gepeto_ai.py "${repoPath}" "${apiKey}" "${aiProvider}"`,
             { cwd: __dirname }
         ).toString();
-        const analysis = JSON.parse(result);
+        
+        const installMatch = result.match(/install_script:\s*(.+)/);
+        const startMatch = result.match(/start_script:\s*(.+)/);
+        const descriptionMatch = result.match(/description:\s*(.+)/);
+        const requirementsMatch = result.match(/requirements:\s*(.+)/);
 
-        // Pastikan requirements.txt dihasilkan
-        if (!analysis.requirements) {
-            analysis.requirements = "# Default dependencies\nflask\nnumpy\nrequests\n"; // Fallback jika AI tidak menghasilkan requirements
-        }
-
-        return analysis;
+        return {
+            install_script: installMatch ? installMatch[1].trim() : 'uv pip install -r requirements.txt',
+            start_script: startMatch ? startMatch[1].trim() : 'python app.py',
+            description: descriptionMatch ? descriptionMatch[1].trim() : 'A Pinokio project',
+            requirements: requirementsMatch ? requirementsMatch[1].trim() : '# Default dependencies\\nflask\\nnumpy\\nrequests\\n',
+            terminal_regex: ''
+        };
     } catch (error) {
         console.error("❌ Gagal menganalisis repositori:", error);
-        return {
-            install_script: "pip install -r requirements.txt",
-            start_script: "python app.py",
-            description: "A Pinokio project",
-            requirements: "# Default dependencies\nflask\nnumpy\nrequests\n", // Fallback
-            pinokio_script: "Default script"
-        };
+         return {
+                install_script: 'uv pip install -r requirements.txt',
+                start_script: 'python app.py',
+                description: 'A Pinokio project',
+                requirements: '# Default dependencies\\nflask\\nnumpy\\nrequests\\n',
+                terminal_regex: ''
+            };
     }
 }
 
@@ -126,14 +131,6 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
             }
         }, {
             type: 'text',
-            name: 'install',
-            message: '',
-            initial: "requirements.txt",
-            onRender(kleur) {
-                this.msg = `${kleur.green('PIP install file')} (Leave empty to use the default)`;
-            }
-        }, {
-            type: 'text',
             name: 'apiKey',
             message: '',
             onRender(kleur) {
@@ -191,48 +188,7 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         }
     }
 
-    // 4. Replace <INSTALL_FILE> with response.install
-    const installFile = path.resolve(dest, "install.js");
-    try {
-        let install_str = fs.readFileSync(installFile, "utf8");
-        install_str = install_str.replaceAll("<INSTALL_FILE>", install);
-        fs.writeFileSync(installFile, install_str);
-    } catch (error) {
-        console.error("❌ Gagal memodifikasi install.js:", error);
-    }
-
-    // 5. Replace <START_FILE> with response.start
-    const startFile = path.resolve(dest, "start.js");
-    try {
-        let start_str = fs.readFileSync(startFile, "utf8");
-        start_str = start_str.replaceAll("<START_FILE>", start);
-        fs.writeFileSync(startFile, start_str);
-    } catch (error) {
-        console.error("❌ Gagal memodifikasi start.js:", error);
-    }
-
-    // Jika url tidak ada (mode tanpa Git), buat requirements.txt dan app.py
-    if (!url) {
-        const requirementsFile = path.resolve(dest, install);
-        try {
-            if (!fs.existsSync(requirementsFile)) {
-                await fs.promises.writeFile(requirementsFile, "# Default dependencies\nflask\nnumpy\nrequests\n"); // Fallback
-            }
-        } catch (error) {
-            console.error("❌ Gagal membuat atau memindahkan requirements.txt:", error);
-        }
-
-        const appFile = path.resolve(dest, start);
-        try {
-            if (!fs.existsSync(appFile)) {
-                await fs.promises.writeFile(appFile, "# Default Python script\nprint('Hello, Pinokio!')\n"); // Fallback
-            }
-        } catch (error) {
-            console.error("❌ Gagal membuat app.py:", error);
-        }
-    }
-
-    // 7. Icon handling
+    // 4. Icon handling
     let iconPath = "icon.png";
     if (iconUrl) {
         try {
@@ -271,7 +227,7 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         }
     }
 
-    // 8. Add .gitignore
+    // 5. Add .gitignore
     const gitIgnore = path.resolve(dest, ".gitignore");
     const gitIgnoreContent = [
         "node_modules",
@@ -281,9 +237,10 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         fs.writeFileSync(gitIgnore, gitIgnoreContent);
     } catch (error) {
         console.error("❌ Gagal membuat .gitignore:", error);
+        return;
     }
 
-    // 9. Git init
+    // 6. Git init
     try {
         await git.init({ fs, dir: dest, defaultBranch: 'main' });
         console.log('✅ Repository initialized successfully.');
@@ -292,7 +249,7 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         return;
     }
 
-    // 10. Git add
+    // 7. Git add
     try {
         await git.add({ fs, dir: dest, filepath: '.' });
         console.log('✅ Files added to Git.');
@@ -301,7 +258,7 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         return;
     }
 
-    // 11. Git commit
+    // 8. Git commit
     try {
         const sha = await git.commit({
             fs,
@@ -328,49 +285,83 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
 
         // Lanjutkan dengan analisis AI
         const analysis = analyzeRepo(repoPath, apiKeyInput, aiProviderInput);
-        if (analysis && analysis.pinokio_script) {
-            // Update install.js
-            const installFile = path.resolve(dest, "install.js");
-            try {
-                let installContent = fs.readFileSync(installFile, "utf8");
-                installContent = installContent.replace(
-                    '"uv pip install -r <INSTALL_FILE>"',
-                    `"${analysis.install_script}"`
-                );
-                fs.writeFileSync(installFile, installContent);
-            } catch (error) {
-                console.error("❌ Gagal memodifikasi install.js:", error);
-            }
+        
+        // Update install.js
+        const installFile = path.resolve(dest, "install.js");
+        try {
+            let installContent = fs.readFileSync(installFile, "utf8");
+            console.log("Install file content before:", installContent)
+            installContent = installContent.replace(
+                '"uv pip install -r <INSTALL_FILE>"',
+                `"${analysis.install_script || 'uv pip install -r requirements.txt'}"`
+            );
+            console.log("Install file content after:", installContent)
+            fs.writeFileSync(installFile, installContent);
+        } catch (error) {
+            console.error("❌ Gagal memodifikasi install.js:", error);
+        }
 
-            // Update start.js
-            const startFile = path.resolve(dest, "start.js");
-            try {
-                let startContent = fs.readFileSync(startFile, "utf8");
-                startContent = startContent.replace(
-                    '"python <START_FILE>"',
-                    `"${analysis.start_script}"`
-                );
-                fs.writeFileSync(startFile, startContent);
-            } catch (error) {
-                console.error("❌ Gagal memodifikasi start.js:", error);
-            }
+        // Update start.js
+        const startFile = path.resolve(dest, "start.js");
+        try {
+            let startContent = fs.readFileSync(startFile, "utf8");
+            console.log("Start file content before:", startContent)
+            startContent = startContent.replace(
+                '"python <START_FILE>"',
+                `"${analysis.start_script || 'python app.py'}"`
+            );
+             console.log("Start file content after:", startContent)
+            fs.writeFileSync(startFile, startContent);
+        } catch (error) {
+            console.error("❌ Gagal memodifikasi start.js:", error);
+        }
 
-            // Update requirements.txt
-            if (analysis.requirements) {
-                const requirementsFile = path.resolve(dest, "requirements.txt");
-                try {
-                    fs.writeFileSync(requirementsFile, analysis.requirements);
-                    console.log('✅ File requirements.txt berhasil dibuat berdasarkan analisis AI.');
-                } catch (error) {
-                    console.error("❌ Gagal membuat requirements.txt:", error);
-                }
+        // Update pinokio.js description
+        try {
+            let pinokioContent = fs.readFileSync(pinokioFile, "utf8");
+            console.log("Pinokio file content before:", pinokioContent)
+            pinokioContent = pinokioContent.replace(
+                'description: ""',
+                `description: "${analysis.description || 'A Pinokio project'}"`
+            );
+            console.log("Pinokio file content after:", pinokioContent)
+            fs.writeFileSync(pinokioFile, pinokioContent);
+        } catch (error) {
+            console.error("❌ Gagal memodifikasi pinokio.js:", error);
+        }
+
+        // Update requirements.txt
+        if (analysis.requirements) {
+            const requirementsFile = path.resolve(dest, "requirements.txt");
+            try {
+                fs.writeFileSync(requirementsFile, analysis.requirements);
+                console.log('✅ File requirements.txt berhasil dibuat berdasarkan analisis AI.');
+            } catch (error) {
+                console.error("❌ Gagal membuat requirements.txt:", error);
             }
-        } else {
-            console.error("❌ Gagal menganalisis repositori atau tidak ada hasil yang valid.");
         }
     } else {
         // Jika tidak ada URL Git, buat file ENVIRONMENT dengan template default
         createEnvironmentFile(dest, null);
+
+        // Create default files if not git url
+        const requirementsFile = path.resolve(dest, install);
+        try {
+            if (!fs.existsSync(requirementsFile)) {
+                await fs.promises.writeFile(requirementsFile, "# Default dependencies\\nflask\\nnumpy\\nrequests\\n"); // Fallback
+            }
+        } catch (error) {
+            console.error("❌ Gagal membuat atau memindahkan requirements.txt:", error);
+        }
+
+        const appFile = path.resolve(dest, start);
+        try {
+            if (!fs.existsSync(appFile)) {
+                await fs.promises.writeFile(appFile, "# Default Python script\\nprint('Hello, Pinokio!')\\n"); // Fallback
+            }
+        } catch (error) {
+            console.error("❌ Gagal membuat app.py:", error);
+        }
     }
     console.log(`✅ Proyek "${projectName}" berhasil dibuat di ${dest}`);
 }

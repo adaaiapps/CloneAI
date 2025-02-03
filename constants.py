@@ -25,51 +25,26 @@ Remember to output the setup instructions only and not the entire readme file.
 
 # Prompt for planning the setup
 plan_prompt = """
-## Task
-
 Analyze the given GitHub repository and create a Pinokio script to install and run the application.
 
-## Instructions
+Output the following information in a JSON-like format:
+- install_script: A single line command to install dependencies (e.g., pip install -r requirements.txt).
+- start_script: A single line command to start the application (e.g., python app.py).
+- description: A short description of the application.
+- requirements: A single line string of requirements.txt content (e.g., requests\\nnumpy).
 
-1.  **Focus on Pinokio:** Create a Pinokio script that uses the `shell.run` method to install dependencies and run the application.
-2.  **Dependency Installation:** Identify the correct way to install dependencies (e.g., using `pip install -r requirements.txt`, `playwright install --with-deps`, `npm install`).
-3.  **Environment Variables:** If a `.env` file is found, copy its content to the `ENVIRONMENT` file in the project directory.
-4.  **Application Launch:** Identify the correct command(s) to launch the application (e.g., `python app.py`, `npm run start`).
-5.  **Description:** Provide a short description of the application for `pinokio.js`.
-6.  **Requirements:** Provide the content for `requirements.txt` if it exists. If not, generate a default `requirements.txt` based on the programming language (e.g., for Python: flask, numpy, requests).
-7.  **Multiple Commands:** If the application requires multiple commands to run, provide them as a list of commands.
-8.  **Terminal Monitoring:** If the application prints a specific message when it's ready, provide a regular expression to monitor the terminal output.
-
-## Output Format
-
-Provide the install command, start command(s), description, requirements, and terminal monitoring regex in the following JSON format:
-
-{
-    "install_script": "Single line install command (e.g., pip install -r requirements.txt)",
-    "start_script": "Single line or multi line start command(s) (e.g., python app.py or [python app.py, npm run start])",
-    "description": "Single line description for pinokio.js (e.g., A simple Python application)",
-    "requirements": "Single line requirements.txt content (e.g., requests\\nnumpy)",
-    "terminal_regex": "Regular expression to monitor the terminal output (e.g., /http:\\\\/\\\\/\\\\S+/)"
-}
-
-**DO NOT OUTPUT ANY SINGLE CHARACTER OUTSIDE OF THIS JSON STRUCTURE.**
+Do not output any text outside of this format.
 """
 
 # Output schema for error fixing
 output_schema = """
-## Output Format
+Output the following information in a JSON-like format:
+- install_script: A single line command to install dependencies (e.g., pip install -r requirements.txt).
+- start_script: A single line command to start the application (e.g., python app.py).
+- description: A short description of the application.
+- requirements: A single line string of requirements.txt content (e.g., requests\\nnumpy).
 
-Provide the install command, start command(s), description, requirements, and terminal monitoring regex in the following JSON format:
-
-{
-    "install_script": "Single line install command (e.g., pip install -r requirements.txt)",
-    "start_script": "Single line or multi line start command(s) (e.g., python app.py or [python app.py, npm run start])",
-    "description": "Single line description for pinokio.js (e.g., A simple Python application)",
-    "requirements": "Single line requirements.txt content (e.g., requests\\nnumpy). If requirements.txt is not found, provide default dependencies based on the programming language.",
-    "terminal_regex": "Regular expression to monitor the terminal output (e.g., /http:\\\\/\\\\/\\\\S+/)"
-}
-
-**DO NOT OUTPUT ANY SINGLE CHARACTER OUTSIDE OF THIS JSON STRUCTURE.**
+Do not output any text outside of this format.
 """
 
 pinokio_commands = {
