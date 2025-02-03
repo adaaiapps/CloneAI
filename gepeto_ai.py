@@ -52,7 +52,7 @@ def analyze_repo(repo_path, api_key, ai_provider):
             openai.api_key = api_key
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                 messages=[
+                messages=[
                     {"role": "user", "content": f"{system_prompt}\n\n{plan_prompt}\n\n{output_schema}\n\n{repo_content}"}
                 ],
                 temperature=0.7,
@@ -77,17 +77,9 @@ def analyze_repo(repo_path, api_key, ai_provider):
             requirements = ""
             terminal_regex = ""
 
-        install_match = re.search(r'(?:pip|uv pip) install(?:.*?)(?:\n|$)', ai_response, re.IGNORECASE)
-        start_match = re.search(r'(?:python|node)(?:.*?)(?:\n|$)', ai_response, re.IGNORECASE)
-        description_match = re.search(r'Deskripsi:(.*?)(?:\n|$)', ai_response, re.IGNORECASE)
-        requirements_match = re.search(r'requirements.txt:(.*?)(?:\n|$)', ai_response, re.IGNORECASE)
-        terminal_regex_match = re.search(r'terminal_regex:(.*?)(?:\n|$)', ai_response, re.IGNORECASE)
-
-        install_script = install_match.group(0).strip() if install_match else ""
-        start_script = start_match.group(0).strip() if start_match else ""
-        description = description_match.group(1).strip() if description_match else ""
-        requirements = requirements_match.group(1).strip() if requirements_match else ""
-        terminal_regex = terminal_regex_match.group(1).strip() if terminal_regex_match else ""
+        # Jika requirements.txt tidak ditemukan, buat default
+        if not requirements:
+            requirements = "# Default dependencies\nflask\nnumpy\nrequests\n"
 
         output = {
             "install_script": install_script,

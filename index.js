@@ -41,6 +41,42 @@ function analyzeRepo(repoPath, apiKey, aiProvider) {
     }
 }
 
+// Fungsi untuk mencari dan membaca file .env
+function findAndReadEnvFile(repoPath) {
+    const envFilePath = path.resolve(repoPath, ".env");
+    if (fs.existsSync(envFilePath)) {
+        try {
+            const envContent = fs.readFileSync(envFilePath, "utf8");
+            return envContent;
+        } catch (error) {
+            console.error("❌ Gagal membaca file .env:", error);
+            return null;
+        }
+    }
+    return null;
+}
+
+// Fungsi untuk membuat file ENVIRONMENT
+function createEnvironmentFile(dest, envContent) {
+    const environmentFilePath = path.resolve(dest, "ENVIRONMENT");
+    try {
+        if (envContent) {
+            fs.writeFileSync(environmentFilePath, envContent);
+            console.log('✅ File ENVIRONMENT berhasil dibuat dari file .env.');
+        } else {
+            const defaultEnvContent = `
+# Silakan isi variabel lingkungan di bawah ini
+API_KEY=your_api_key_here
+DATABASE_URL=your_database_url_here
+`;
+            fs.writeFileSync(environmentFilePath, defaultEnvContent);
+            console.log('✅ File ENVIRONMENT berhasil dibuat dengan template default.');
+        }
+    } catch (error) {
+        console.error("❌ Gagal membuat file ENVIRONMENT:", error);
+    }
+}
+
 // Fungsi untuk membuat proyek baru
 async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
     const argv = yargs(hideBin(process.argv)).parse();
@@ -279,12 +315,19 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         return;
     }
 
-    // Jika URL Git ada, analisis repositori
+    // Jika URL Git ada, analisis repositori dan cari file .env
     if (url) {
         const repoName = gitUrlInput.split("/").pop().replace(".git", "");
         const repoPath = path.resolve(dest, repoName);
-        const analysis = analyzeRepo(repoPath, apiKeyInput, aiProviderInput);
 
+        // Cari dan baca file .env
+        const envContent = findAndReadEnvFile(repoPath);
+
+        // Buat file ENVIRONMENT
+        createEnvironmentFile(dest, envContent);
+
+        // Lanjutkan dengan analisis AI
+        const analysis = analyzeRepo(repoPath, apiKeyInput, aiProviderInput);
         if (analysis && analysis.pinokio_script) {
             // Update install.js
             const installFile = path.resolve(dest, "install.js");
@@ -325,6 +368,9 @@ async function createProject(name, gitUrl, icon, apiKey, aiProvider) {
         } else {
             console.error("❌ Gagal menganalisis repositori atau tidak ada hasil yang valid.");
         }
+    } else {
+        // Jika tidak ada URL Git, buat file ENVIRONMENT dengan template default
+        createEnvironmentFile(dest, null);
     }
     console.log(`✅ Proyek "${projectName}" berhasil dibuat di ${dest}`);
 }
